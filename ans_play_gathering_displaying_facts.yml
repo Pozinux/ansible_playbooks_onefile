@@ -1,0 +1,11 @@
+---   
+  - name: "Gathering and displaying facts"  
+    hosts: all  
+    tasks:  
+        - name: "Gather facts"  
+          setup:   
+          register: result_facts  
+    
+        - name: "Display facts"  
+          debug:   
+               var: result_facts
