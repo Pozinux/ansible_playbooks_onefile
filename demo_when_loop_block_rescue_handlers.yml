@@ -1,4 +1,7 @@
 ---
+
+# Installer le service Web Apache et le protéger à l’aide de mod_ssl. Utiliser des conditions, des gestionnaires et une gestion des échecs de tâches 
+
 - name: Playbook Control Lab
   hosts: webservers
   vars_files: vars.yml
