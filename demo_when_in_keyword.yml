@@ -12,3 +12,4 @@
         name: http
         state: present
       when: ansible_distribution in supported_distros
+      # ansible_distribution fait partie des facts
