@@ -1,0 +1,14 @@
+---
+- name: Restart HTTPD if Postfix is Running
+  hosts: all
+  tasks:
+    - name: Get Postfix server status
+      command: /usr/bin/systemctl is-active postfix 1
+      ignore_errors: yes2
+      register: result3
+
+    - name: Restart Apache HTTPD based on Postfix status
+      service:
+        name: httpd
+        state: restarted
+      when: result.rc == 04
