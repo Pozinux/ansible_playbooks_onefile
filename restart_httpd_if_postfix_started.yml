@@ -11,4 +11,5 @@
       service:
         name: httpd
         state: restarted
-      when: result.rc == 04
+      when: result.rc == 04  # 	
+Évalue le résultat de la tâche Postfix. Si le code de sortie de la commande systemctl est 0, le service Postfix est actif et cette tâche redémarre le service httpd.
