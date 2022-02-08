@@ -4,7 +4,7 @@
   tasks:
     - name: Get Postfix server status
       command: /usr/bin/systemctl is-active postfix 1
-      ignore_errors: yes2
+      ignore_errors: yes2  # S’il n’est pas exécuté et que la commande échoue, n’arrêtez pas le traitement
       register: result3
 
     - name: Restart Apache HTTPD based on Postfix status
