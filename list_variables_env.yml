@@ -6,4 +6,6 @@
   tasks:
     - name: Printing all the environment variables in Ansible
       debug:
-        msg: "{{ local_shell }}"
+        msg: "{{ local_shell }}"  # Pour filtrer sur des variables en particulier -> msg: "{{ lookup('env','USER','HOME','SHELL') }}"
+ 
+
