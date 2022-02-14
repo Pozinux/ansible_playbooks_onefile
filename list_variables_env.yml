@@ -1,0 +1,9 @@
+---
+- name:
+  hosts: webservers
+  vars:
+    local_shell:  "{{ ansible_env }}"
+  tasks:
+    - name: Printing all the environment variables in Ansible
+      debug:
+        msg: "{{ local_shell }}"
