@@ -1,4 +1,7 @@
 ---
+
+# changer le lien symbolique sur les hôtes gérés afin de référencer la cible de démarrage graphical-target
+
 - name: Change default boot target
   hosts: webservers
   become: true
