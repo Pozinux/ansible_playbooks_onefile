@@ -1,0 +1,175 @@
+---
+- name: "List NFS shares"
+  hosts: "{{ HOSTS }}"
+  gather_facts: no
+  # gather_subset: "!all, hardware"
+  no_log: yes
+  vars:
+    nfs_mounted_list: []
+    nfs_in_fstab_list: []
+    nfs_in_fstab_but_not_in_mounted_list: []
+    all_status_nfs_list: []
+    nfs_mounted_with_status_list: []
+    nfs_not_mounted_with_status_list: []
+    debug_role: no
+    exclude_mount_upper: "/SRCE"
+    nfs_type: "nfs4"
+    csv_path: /tmp/result_list.out
+  
+  tasks:
+  
+    - name: "Get facts"
+      ansible.builtin.setup:
+        filter: ansible_mounts
+
+    - name: "Print some debug about mounts" 
+      ansible.builtin.debug:
+        var: ansible_facts.mounts
+      when: debug_role | bool == true
+
+    - name: "Set NFS mounted status fact (from ansible facts)"
+      ansible.builtin.set_fact:
+        nfs_mounted_list: "{{ nfs_mounted_list + [ inventory_hostname + ';' + item.mount + ';' + item.device ] }}"
+      loop: "{{ ansible_facts.mounts }}"
+      when:
+        - item.fstype == nfs_type
+        - item.mount | upper != exclude_mount_upper
+
+    - name: "Debug nfs_mounted_list"
+      ansible.builtin.debug:
+        var: nfs_mounted_list
+      when: debug_role | bool == true
+
+###########################
+
+    - name: "Get NFS (from fstab)"
+      ansible.builtin.shell: grep {{ nfs_type }} /etc/fstab | awk '{print $2" "$1}'
+      become: yes
+      register: status_nfs_fstab_result
+      changed_when: no
+      become: yes
+
+    - name: "Debug status_nfs_fstab_result (from fstab)"
+      ansible.builtin.debug:
+        var: status_nfs_fstab_result
+      when: debug_role | bool == true
+
+    - name: "Debug status_nfs_fstab_result.stdout_lines"
+      ansible.builtin.debug:
+        var: status_nfs_fstab_result.stdout_lines
+      when: debug_role | bool == true
+
+    - name: "Set fact -> nfs_in_fstab_list"
+      ansible.builtin.set_fact:
+        nfs_in_fstab_list: "{{ nfs_in_fstab_list  + [ inventory_hostname + ';' + item.split(' ')[0] + ';' + item.split(' ')[1] ] }}"
+      loop: "{{ status_nfs_fstab_result.stdout_lines }}"
+
+    - name: "DEBUG nfs_in_fstab_list"
+      ansible.builtin.debug:
+        var: nfs_in_fstab_list
+      when: debug_role | bool == true
+
+    # - meta: end_play
+
+  ###########################
+
+    - name: "Set fact -> nfs_in_fstab_but_not_in_mounted_list"
+      ansible.builtin.set_fact:
+        nfs_in_fstab_but_not_in_mounted_list: "{{ nfs_in_fstab_but_not_in_mounted_list + [ item ] }}"
+      loop: "{{ nfs_in_fstab_list }}"
+      when: item not in nfs_mounted_list
+
+    - name: "Debug nfs_in_fstab_but_not_in_mounted_list"
+      ansible.builtin.debug:
+        var: nfs_in_fstab_but_not_in_mounted_list
+      when: debug_role | bool == true
+
+    # - meta: end_play
+
+  ###########################
+
+    - name: "Concatenate mounted list with status `is_mounted`"
+      ansible.builtin.set_fact:
+        nfs_mounted_with_status_list: "{{ nfs_mounted_with_status_list + [ item + ';is_mounted'] }}"    
+      loop: "{{ nfs_mounted_list }}" 
+      delegate_to: localhost
+      run_once: yes
+
+    - name: "Concatenate not mounted list with status `not_mounted`"
+      ansible.builtin.set_fact:
+        nfs_not_mounted_with_status_list: "{{ nfs_not_mounted_with_status_list + [ item + ';not_mounted'] }}"      
+      loop: "{{ nfs_in_fstab_but_not_in_mounted_list }}"  
+      delegate_to: localhost
+      run_once: yes
+
+    - name: "Consolidate all collected all_status_nfs_list"
+      ansible.builtin.set_fact:
+        all_status_nfs_list: "{{ all_status_nfs_list + nfs_mounted_with_status_list + nfs_not_mounted_with_status_list }}"    
+      loop: "{{ ansible_play_hosts_all }}"  # Ansible special var
+      delegate_to: localhost
+      run_once: yes
+
+    - name: "### REPORT JIRA/PYTHON ### all_status_nfs_list"
+      ansible.builtin.debug:
+        var: all_status_nfs_list
+      delegate_to: localhost
+      run_once: yes
+
+    - name: "Create a file with new line between list elements"
+      set_fact:
+        result_list: "{{ all_status_nfs_list | join('\n') }}"
+
+    - name: "Copier le résultat dans /tmp" 
+      ansible.builtin.copy: 
+        content: "{{ result_list }}"
+        dest: "{{ csv_path }}"
+      delegate_to: localhost
+      run_once: yes
+
+    ### En cas de lenteur réseau
+    # - name: Making sure that the csv file is present before writing the header
+    #   wait_for:
+    #     path:  "{{ csv_path }}"
+    #     timeout: 5
+    #     state: present
+    #     msg: "Specified CSV FILE is not present"
+    #   delegate_to: localhost
+    #   run_once: yes
+
+    - name: "Add header to CSV file"
+      lineinfile:
+          path: "{{ csv_path }}"
+          line: 'HOSTNAME;MOUNT_POINT;NFS_DEVICE;MOUNT_STATUS'
+          insertbefore: BOF
+      delegate_to: localhost
+      run_once: yes
+
+    - name: "Set custom stats"
+      ansible.builtin.set_stats:
+        data:
+          all_status_nfs_list: "{{ all_status_nfs_list }}"
+        per_host: yes
+
+
+
+    ## OLD VERSION avec JSON et dict (à garder)
+
+    # - name: "Set fact : List of NFS shares not mounted"
+    #   ansible.builtin.set_fact:
+    #     status_nfs_not_mounted: "{{ status_nfs_not_mounted | default([]) + [ { 'mount': item.split(' ')[0], 'device': item.split(' ')[1], 'is_mounted': false } ] }}"
+    #   loop: "{{ status_nfs_fstab_result.stdout_lines }}"
+    #   when: not status_nfs_mounted | json_query(my_query)
+    #   vars: 
+    #     my_query: "[?mount == '{{ item.split(' ')[0] }}']"
+
+    # - name: "### REPORT JIRA/PYTHON ### Debug NFS mounted"
+    #   ansible.builtin.debug:
+    #     # var: status_nfs[2].mount
+    #     var: status_nfs_mounted
+    #   when: status_nfs_mounted != []
+
+    # - name: "### REPORT JIRA/PYTHON ### Debug NFS NOT mounted"
+    #   ansible.builtin.debug:
+    #     var: status_nfs_not_mounted
+    #   when: status_nfs_not_mounted != []
+    
