@@ -1,0 +1,172 @@
+---
+# 
+  
+- name: test
+  hosts: 
+    - SERVER1
+    - SERVER2
+
+  tasks:
+    - name: Set fact sur chaque host
+      set_fact:
+        var_du_host: "var_de_{{ ansible_hostname }}"
+
+    - debug: var=var_du_host
+
+###################################################    
+
+    - name: Test register_without_run_once
+      shell: hostname
+      register: register_without_run_once
+
+    - debug: var=register_without_run_once.stdout_lines
+
+    - name: Test register_with_run_once
+      shell: hostname
+      register: register_with_run_once
+      run_once: yes
+
+    - debug: var=register_with_run_once.stdout_lines
+
+###################################################
+
+    - name: Test set_fact_without_run_once
+      set_fact:
+        set_fact_without_run_once: "{{ set_fact_without_run_once | default([]) + [var_du_host] }}"
+
+    - debug: var=set_fact_without_run_once
+
+    - name: Test set_fact_with_run_once
+      set_fact:
+        set_fact_with_run_once: "{{ set_fact_with_run_once | default([]) + [var_du_host] }}"
+      run_once: yes
+
+    - debug: var=set_fact_with_run_once
+
+###################################################
+
+    - name: Test set_fact_with_loop_and_without_run_once
+      set_fact:
+        set_fact_with_loop_and_without_run_once: "{{ set_fact_with_loop_and_without_run_once | default([]) + [var_du_host] }}"
+      loop: "{{ [1, 2, 3] }}"
+
+    - debug: var=set_fact_with_loop_and_without_run_once
+
+    - debug: var=hostvars['SERVER1'].set_fact_with_loop_and_without_run_once
+
+    - debug: var=hostvars['SERVER1'].set_fact_with_loop_and_without_run_once
+      run_once: yes
+
+    - debug: var=hostvars['SERVER1'].set_fact_with_loop_and_without_run_once
+      run_once: yes
+      delegate_to: localhost
+
+    - debug: var=hostvars['localhost'].set_fact_with_loop_and_without_run_once
+      run_once: yes
+
+    - debug: var=hostvars['localhost'].set_fact_with_loop_and_without_run_once
+      run_once: yes
+      delegate_to: localhost
+
+    - debug: var=hostvars['SERVER2'].set_fact_with_loop_and_without_run_once
+      run_once: yes
+      delegate_to: localhost
+
+###################################################
+
+    - name: Test set_fact_with_loop_and_with_run_once
+      set_fact:
+        set_fact_with_loop_and_with_run_once: "{{ set_fact_with_loop_and_with_run_once | default([]) + [var_du_host] }}"
+      loop: "{{ [1, 2, 3] }}"
+      run_once: yes
+
+    - debug: var=set_fact_with_loop_and_with_run_once
+
+    - debug: var=hostvars['SERVER1'].set_fact_with_loop_and_with_run_once
+
+    - debug: var=hostvars['SERVER1'].set_fact_with_loop_and_with_run_once
+      run_once: yes
+
+    - debug: var=hostvars['SERVER1'].set_fact_with_loop_and_with_run_once
+      run_once: yes
+      delegate_to: localhost
+
+    - debug: var=hostvars['localhost'].set_fact_with_loop_and_with_run_once
+      run_once: yes
+
+    - debug: var=hostvars['localhost'].set_fact_with_loop_and_with_run_once
+      run_once: yes
+      delegate_to: localhost
+
+    - debug: var=hostvars['SERVER2'].set_fact_with_loop_and_with_run_once
+      run_once: yes
+      delegate_to: localhost
+
+###################################################
+
+    - name: Test delegate_facts sans run_once et sans delegate_to
+      set_fact:
+        list1: "{{ list1 | default([]) + [var_du_host] }}"
+      delegate_facts: yes
+
+    - debug: var=list1
+
+    - debug: var=hostvars['SERVER2'].list1
+
+    - debug: var=hostvars['SERVER1'].list1
+
+    - debug: var=hostvars['localhost'].list1
+
+    - debug: var=hostvars['localhost'].list1
+
+    - debug: var=hostvars['localhost'].list1
+      run_once: yes
+
+###################################################
+
+    - name: Test delegate_facts sans run_once et delegate_to
+      set_fact:
+        list2: "{{ list2 | default([]) + [var_du_host] }}"
+      delegate_facts: yes
+      delegate_to: localhost
+
+    - debug: var=list2
+
+    - debug: var=hostvars['SERVER2'].list2
+
+    - debug: var=hostvars['SERVER1'].list2
+
+    - debug: var=hostvars['localhost'].list2
+
+    - debug: var=hostvars['localhost'].list2
+
+    - debug: var=hostvars['localhost'].list2
+      run_once: yes
+
+###################################################
+    
+    - name: Test avec boucle sur ansible_play_hosts_all
+      set_fact:
+        list4: "{{ list4 | default([]) + [hostvars[item].var_du_host] }}"
+      loop: "{{ ansible_play_hosts_all }}"
+    
+    - debug: var=list4
+
+###################################################
+
+    - name: Test avec boucle sur ansible_play_hosts_all avec run_once sur debug
+      set_fact:
+        list5: "{{ list5 | default([]) + [hostvars[item].var_du_host] }}"
+      loop: "{{ ansible_play_hosts_all }}"
+    
+    - debug: var=list5
+      run_once: yes
+
+###################################################
+
+    - name: Test création liste avec simple boucle
+      set_fact:
+        list6: "{{ list6 | default([]) + [ item ] }}"
+      loop: "{{ [1, 2, 3, 4] }}"
+    
+    - debug: var=list6
